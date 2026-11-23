@@ -31,7 +31,7 @@ GET {{baseUrl}}/api/auth/me
 Authorization: Bearer {{userToken}}
 Accept: application/json
 
-### Buscar ciudades cuyo nombre contiene "mad"
+### Buscar ciudades cuyo nombre contiene "mad" (guarda /api/cities sin query string)
 GET {{baseUrl}}/api/cities?search=mad
 Authorization: Bearer {{userToken}}
 Accept: application/json
@@ -93,12 +93,98 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "iataCode": "VAC",
+  "iataCode": "VLC",
   "name": "Aeropuerto de Valencia",
   "cityId": {{valenciaId}}
 }
 
-### Filtrar aeropuertos por ciudad
-GET {{baseUrl}}/api/airports?cityId={{valenciaId}}
+### ==========================================
+### COMPROBACIONES DE AUDITORÍA (U01_05_07)
+### ==========================================
+@anaId = {{loginUser.response.body.user.id}}
+@adminId = {{loginAdmin.response.body.user.id}}
+
+### Registrar un usuario nuevo sin actividad previa para probar array vacío []
+# @name registerEmptyUser
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Usuario Sin Logs",
+  "email": "sinlogs@example.com",
+  "password": "una frase de acceso segura"
+}
+
+@emptyUserId = {{registerEmptyUser.response.body.id}}
+
+### 1. Petición sin autenticación -> 401 (no genera registro de auditoría)
+GET {{baseUrl}}/api/cities
+Accept: application/json
+
+### 2. Consulta admin sin autenticar -> 401 (no genera registro de auditoría)
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs
+Accept: application/json
+
+### 3. Usuario normal consulta ruta admin -> 403 (registra 403 para Ana)
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs
 Authorization: Bearer {{userToken}}
+Accept: application/json
+
+### 4. Admin consulta historial completo de Ana -> 200 (más reciente primero)
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 5. Admin consulta con n=2 -> 200 (máximo 2 registros más recientes)
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs?n=2
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 6. Admin consulta con n=1 -> 200 (solo el registro más reciente)
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs?n=1
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### Registrar usuario sin actividad previa (cambia el email si ya lo usaste antes)
+# @name registerEmptyUser
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Usuario Sin Logs",
+  "email": "sinlogs.prueba1@example.com",
+  "password": "una frase de acceso segura"
+}
+
+@emptyUserId = {{registerEmptyUser.response.body.id}}
+
+### 7. Admin consulta usuario existente sin registros -> 200 y []
+GET {{baseUrl}}/api/admin/users/{{emptyUserId}}/logs
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+### 8. Admin consulta usuario inexistente -> 404
+GET {{baseUrl}}/api/admin/users/999999/logs
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 9. Parámetro n no entero positivo (n=0) -> 422
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs?n=0
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 10. Parámetro n no entero positivo (n=-3) -> 422
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs?n=-3
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 11. Parámetro n no entero positivo (n=abc) -> 422
+GET {{baseUrl}}/api/admin/users/{{anaId}}/logs?n=abc
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 12. Admin consulta su propia actividad -> 200 (debe incluir las consultas anteriores a /logs)
+GET {{baseUrl}}/api/admin/users/{{adminId}}/logs
+Authorization: Bearer {{adminToken}}
 Accept: application/json

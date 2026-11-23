@@ -45,6 +45,22 @@ CREATE TABLE IF NOT EXISTS airports (
     ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  method VARCHAR(10) NOT NULL,
+  path VARCHAR(255) NOT NULL,
+  status_code SMALLINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_activity_logs_user_id_id (user_id, id),
+  KEY idx_activity_logs_user_id_created_at (user_id, created_at),
+  CONSTRAINT fk_activity_logs_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
 INSERT INTO cities (id, name, country) VALUES
   (1, 'Madrid', 'España'),
   (2, 'Barcelona', 'España'),

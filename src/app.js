@@ -3,10 +3,13 @@ import { pool } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import cityRoutes from './routes/cityRoutes.js';
 import airportRoutes from './routes/airportRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import { auditLogger } from './middleware/auditLogger.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 app.use(express.json());
+app.use(auditLogger);
 
 app.get('/api/health', async (req, res) => {
   const [rows] = await pool.query('SELECT COUNT(*) AS cities FROM cities');
@@ -16,8 +19,9 @@ app.get('/api/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/cities', cityRoutes);
 app.use('/api/airports', airportRoutes);
+app.use('/api/admin', adminRoutes);
 
-app.use(notFound);     
-app.use(errorHandler);  
+app.use(notFound);
+app.use(errorHandler);
 
 export default app;
